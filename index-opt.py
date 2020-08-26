@@ -9,10 +9,13 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from pytube import YouTube, compat
+import ssl
+import time
 
-class Upload(QWidget):
+class Download(QWidget):
   def __init__(self):
-    super(Upload, self).__init__()
+    super(Download, self).__init__()
     self.switch = True
     self.initUI()
 
@@ -44,9 +47,18 @@ class Upload(QWidget):
     self.start_le.move(120,120)
     self.start_le.resize(250,30)
 
+    # 视频下载后的保存
+    self.source_btn = QPushButton('存储路径：', self)
+    self.source_btn.move(20, 165)
+    self.source_btn.resize(100,30)
+    self.source_btn.clicked.connect(self.select_source)
+    self.source_le = QLineEdit(self)
+    self.source_le.move(120, 165)
+    self.source_le.resize(250,30)
+
     #上传按钮
     self.save_btn = QPushButton('开始下载',self)
-    self.save_btn.move(200, 200)
+    self.save_btn.move(200, 230)
     self.save_btn.resize(140, 30)
     self.save_btn.clicked.connect(self.kick)
 
@@ -68,6 +80,10 @@ class Upload(QWidget):
     size = self.geometry()#获取窗口尺寸
     self.move(int((screen.width() - size.width()) / 2), int((screen.height() - size.height()) / 2))#利用move函数窗口居中
 
+  def select_source(self):
+    dir_path = QFileDialog.getExistingDirectory(self, "请选择文件夹路径", "C:/")
+    self.source_le.setText(str(dir_path))
+
   def set_label_func(self, text):
     self.result_le.setText(text)
 
@@ -78,30 +94,32 @@ class Upload(QWidget):
     channel = self.channel_le.text().strip()#YouTube频道
     qty = self.qty_le.text().strip()#视频下载数量
     start_from = self.start_le.text().strip()#视频下载数量
-    if self.switch and channel != '' and qty != '' and start_from != '':
+    savePath = self.source_le.text().strip()#视频存储路径
+    if self.switch and channel != '' and qty != '' and start_from != '' and savePath != '':
       self.switch = False
       self.set_label_func('请耐心等待，正在打开浏览器！')
-      self.my_thread = MyThread(channel, qty, start_from, self.set_label_func)#实例化线程对象
+      self.my_thread = MyThread(channel, qty, start_from, savePath, self.set_label_func)#实例化线程对象
       self.my_thread.start()#启动线程
       self.my_thread.my_signal.connect(self.switch_func)
 
 class MyThread(QThread):#线程类
+  ssl._create_default_https_context = ssl._create_unverified_context
   my_signal = pyqtSignal(bool)  #自定义信号对象。参数bool就代表这个信号可以传一个布尔值
-  def __init__(self, channel, qty, start_from, set_label_func):
+  def __init__(self, channel, qty, start_from, savePath, set_label_func):
     super(MyThread, self).__init__()
     self.channel = channel
     self.qty = qty
     self.start_from = start_from
+    self.savePath = savePath
     self.set_label_func = set_label_func
 
   def run(self): #线程执行函数
-    string = self.fetchData(self.channel, self.qty, self.start_from, self.set_label_func)
+    string = self.fetchData(self.channel, self.qty, self.start_from, self.savePath, self.set_label_func)
     self.set_label_func(string)
     self.my_signal.emit(True)  #释放自定义的信号
 
-  # 该函数臃肿严重，后续优化【包含时间间隔判断函数优化】
-  def fetchData(self, channel, qty, start_from, set_label_func):
-    print(channel, qty, start_from)
+  def fetchData(self, channel, qty, start_from, savePath, set_label_func):
+    print(channel, qty, start_from, savePath)
     # option = webdriver.ChromeOptions()
     # option.add_argument(r'user-data-dir=C:\Users\zhuan\AppData\Local\Google\Chrome\User Data')
     # option.add_argument('--ignore-certificate-errors')
@@ -144,47 +162,15 @@ class MyThread(QThread):#线程类
       if self.isVideoLong(time_str, 15) and target_url != None:
         url_list.append(target_url)
 
+    browser.quit()
     total_num_video = len(url_list)
-
-    print('已经爬到的视频个数:', total_num_video)
-    print('链接地址如下:', url_list)
-
-    download_num = self.numCompare(total_num_video, int(qty))
     num = int(start_from)
-    while num <= download_num:
-      try:
-        browser.get('https://en.savefrom.net/18/')
-        WebDriverWait(browser, 30).until(
-          EC.presence_of_element_located((By.XPATH,"//input"))
-        )
-        self.sleep(1)
-        browser.find_element_by_xpath('//input').send_keys(url_list[num])
-        video_compile = browser.find_element_by_xpath('//button[contains(text(),"Download")]')
-        video_compile.click()
-        WebDriverWait(browser, 30).until(
-          EC.presence_of_element_located((By.CLASS_NAME,"def-btn-box"))
-        )
-        isChannelExist = self.isElementExist(browser, '.def-btn-box')
-        if not isChannelExist:
-          video_compile.click()
-        self.sleep(1)
-        download = browser.find_element_by_class_name('def-btn-box')
-        download.click()
-        # 关闭广告页面
-        handles = browser.window_handles
-        if len(handles) > 1:
-          browser.switch_to.window(handles[1])
-          browser.close()
-          browser.switch_to.window(handles[0])
-        browser.get('https://en.savefrom.net/18/')
-        current_download = '当前视频下载进度:' + str(num) + '/' + str(download_num)
-        print(current_download)
-        self.set_label_func(current_download)
-        num = num + 1
-      except ZeroDivisionError as e:
-        print('error:', e)
-      finally:
-        print('搞定一个！')
+    download_num = self.numCompare(total_num_video, int(qty) + num)
+    vedio_qty_str= '视频总数量：' + str(total_num_video) + ';需要下载数量：' + qty
+    print(vedio_qty_str)
+    self.set_label_func(vedio_qty_str)
+    print('链接地址如下:', url_list)
+    Downloadtube(url_list, num, download_num, savePath, self.set_label_func)
 
     return '自动下载了' + str(download_num) + '个视频！'
 
@@ -218,8 +204,45 @@ class MyThread(QThread):#线程类
     else:
       return a
 
+class Downloadtube():
+  def __init__(self, urlList, num, download_num, savePath, set_label_func):
+    self.index = num
+    self.proxy_handler = {
+      "http": "http://127.0.0.1:7890",
+      'https': 'https://127.0.0.1:7890'
+    }
+    self.urlList = urlList
+    self.download_num = download_num
+    self.path = savePath
+    self.set_label_func = set_label_func
+    self.initDownload()
+
+  def initDownload(self):
+    ssl._create_default_https_context = ssl._create_unverified_context
+    index = self.index - 1
+    while index < self.download_num:
+      self.downloadVideo()
+
+  def show_progress_bar(self, stream, chunk, file_handle):
+    # print('stream', stream)
+    # print('chunk', chunk)
+    print('file_handle', file_handle)
+
+  def downloadVideo(self):
+    try:
+      yt = YouTube(self.urlList[0], proxies=self.proxy_handler, on_progress_callback=self.show_progress_bar)
+      yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').last().download(self.path)
+      self.index = self.index + 1
+      current_download_str = '当前视频下载进度:' + str(self.index) + '/' + str(self.download_num)
+      print(current_download_str)
+      self.set_label_func(current_download_str)
+    except BaseException:
+      print(self.index, BaseException)
+      time.sleep(5)
+      self.downloadVideo()
+
 if __name__=="__main__":
   app = QApplication(sys.argv)
-  ex = Upload()
+  ex = Download()
   ex.show()
   sys.exit(app.exec_())
