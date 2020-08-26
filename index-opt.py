@@ -166,7 +166,7 @@ class MyThread(QThread):#线程类
     total_num_video = len(url_list)
     num = int(start_from)
     download_num = self.numCompare(total_num_video, int(qty) + num)
-    vedio_qty_str= '视频总数量：' + str(total_num_video) + ';需要下载数量：' + qty
+    vedio_qty_str= '视频总数量：' + str(total_num_video) + '; 需要下载的序号：' + str(num) + '-' + str(download_num)
     print(vedio_qty_str)
     self.set_label_func(vedio_qty_str)
     print('链接地址如下:', url_list)
@@ -227,12 +227,13 @@ class Downloadtube():
     # print('stream', stream)
     # print('chunk', chunk)
     print('file_handle', file_handle)
+    if file_handle == 0:
+      self.index = self.index + 1
 
   def downloadVideo(self):
     try:
-      yt = YouTube(self.urlList[0], proxies=self.proxy_handler, on_progress_callback=self.show_progress_bar)
+      yt = YouTube(self.urlList[self.index], proxies=self.proxy_handler, on_progress_callback=self.show_progress_bar)
       yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').last().download(self.path)
-      self.index = self.index + 1
       current_download_str = '当前视频下载进度:' + str(self.index) + '/' + str(self.download_num)
       print(current_download_str)
       self.set_label_func(current_download_str)
