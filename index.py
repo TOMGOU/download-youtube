@@ -128,7 +128,7 @@ class MyThread(QThread):#线程类
     self.sleep(5)
     scroll_num = math.ceil(int(qty) / 30)
     for index in range(scroll_num):
-      browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+      browser.execute_script("window.scrollTo(0, 100000);")
       self.sleep(10)
 
     time_elements = browser.find_elements_by_xpath('//*[@id="thumbnail"]/*[@id="overlays"]/ytd-thumbnail-overlay-time-status-renderer/span')
@@ -160,9 +160,12 @@ class MyThread(QThread):#线程类
         browser.find_element_by_xpath('//input').send_keys(url_list[num])
         video_compile = browser.find_element_by_xpath('//button[contains(text(),"Download")]')
         video_compile.click()
-        WebDriverWait(browser, 300).until(
+        WebDriverWait(browser, 30).until(
           EC.presence_of_element_located((By.CLASS_NAME,"def-btn-box"))
         )
+        isChannelExist = self.isElementExist(browser, '.def-btn-box')
+        if not isChannelExist:
+          video_compile.click()
         self.sleep(1)
         download = browser.find_element_by_class_name('def-btn-box')
         download.click()
