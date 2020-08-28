@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from pytube import YouTube, compat
+from pytube import YouTube
 import ssl
 import time
 
@@ -93,7 +93,7 @@ class Download(QWidget):
   def kick(self):
     channel = self.channel_le.text().strip()#YouTube频道
     qty = self.qty_le.text().strip()#视频下载数量
-    start_from = self.start_le.text().strip()#视频下载数量
+    start_from = self.start_le.text().strip()#视频下载开始序号
     savePath = self.source_le.text().strip()#视频存储路径
     if self.switch and channel != '' and qty != '' and start_from != '' and savePath != '':
       self.switch = False
@@ -219,8 +219,7 @@ class Downloadtube():
 
   def initDownload(self):
     ssl._create_default_https_context = ssl._create_unverified_context
-    index = self.index - 1
-    while index < self.download_num:
+    while (self.index - 1) < self.download_num:
       self.downloadVideo()
 
   def show_progress_bar(self, stream, chunk, file_handle):
