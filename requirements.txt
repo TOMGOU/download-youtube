@@ -1,5 +1,5 @@
-win_unicode_console==0.5
-selenium==3.141.0
 pytube3==9.6.4
+selenium==3.141.0
+win_unicode_console==0.5
 PyQt5==5.15.0
 pytube==9.6.0

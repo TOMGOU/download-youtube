@@ -20,12 +20,12 @@ class Download(QWidget):
     self.initUI()
 
   def initUI(self):
-    # YouTube频道输入框和提示
+    # YouTube链接地址输入框和提示
     self.channelLabel = QLabel(self)
     self.channelLabel.move(30, 30)
     self.channelLabel.resize(100,30)
-    self.channelLabel.setText("YouTube频道：")
-    self.channel_le = QLineEdit('Motion Station', self)
+    self.channelLabel.setText("YouTube链接：")
+    self.channel_le = QLineEdit('https://www.youtube.com/', self)
     self.channel_le.move(120,30)
     self.channel_le.resize(250,30)
 
@@ -34,7 +34,7 @@ class Download(QWidget):
     self.qtyLabel.move(30, 75)
     self.qtyLabel.resize(100,30)
     self.qtyLabel.setText("视频下载数量：")
-    self.qty_le = QLineEdit('30', self)
+    self.qty_le = QLineEdit('10', self)
     self.qty_le.move(120,75)
     self.qty_le.resize(250,30)
 
@@ -43,7 +43,7 @@ class Download(QWidget):
     self.startLabel.move(30, 120)
     self.startLabel.resize(100,30)
     self.startLabel.setText("开始下载序号：")
-    self.start_le = QLineEdit('1', self)
+    self.start_le = QLineEdit('0', self)
     self.start_le.move(120,120)
     self.start_le.resize(250,30)
 
@@ -68,10 +68,6 @@ class Download(QWidget):
     self.result_le.resize(340, 30)
     self.result_le.setStyleSheet('color: blue;')
 
-    # 进度条
-    self.pbar = QProgressBar(self)
-    self.pbar.setGeometry(30, 320, 350, 25)
-
     # 整体界面设置
     self.resize(400, 400)
     self.center()
@@ -88,9 +84,6 @@ class Download(QWidget):
     dir_path = QFileDialog.getExistingDirectory(self, "请选择文件夹路径", "C:/")
     self.source_le.setText(str(dir_path))
 
-  def set_progress_func(self, value):
-    self.pbar.setValue(value)
-
   def set_label_func(self, text):
     self.result_le.setText(text)
 
@@ -105,28 +98,27 @@ class Download(QWidget):
     if self.switch and channel != '' and qty != '' and start_from != '' and savePath != '':
       self.switch = False
       self.set_label_func('请耐心等待，正在打开浏览器！')
-      self.my_thread = MyThread(channel, qty, start_from, savePath, self.set_label_func, self.set_progress_func)#实例化线程对象
+      self.my_thread = MyThread(channel, qty, start_from, savePath, self.set_label_func)#实例化线程对象
       self.my_thread.start()#启动线程
       self.my_thread.my_signal.connect(self.switch_func)
 
 class MyThread(QThread):#线程类
   ssl._create_default_https_context = ssl._create_unverified_context
   my_signal = pyqtSignal(bool)  #自定义信号对象。参数bool就代表这个信号可以传一个布尔值
-  def __init__(self, channel, qty, start_from, savePath, set_label_func, set_progress_func):
+  def __init__(self, channel, qty, start_from, savePath, set_label_func, ):
     super(MyThread, self).__init__()
     self.channel = channel
     self.qty = qty
     self.start_from = start_from
     self.savePath = savePath
     self.set_label_func = set_label_func
-    self.set_progress_func = set_progress_func
 
   def run(self): #线程执行函数
-    string = self.fetchData(self.channel, self.qty, self.start_from, self.savePath, self.set_label_func, self.set_progress_func)
+    string = self.fetchData(self.channel, self.qty, self.start_from, self.savePath, self.set_label_func)
     self.set_label_func(string)
     self.my_signal.emit(True)  #释放自定义的信号
 
-  def fetchData(self, channel, qty, start_from, savePath, set_label_func, set_progress_func):
+  def fetchData(self, channel, qty, start_from, savePath, set_label_func):
     print(channel, qty, start_from, savePath)
     # option = webdriver.ChromeOptions()
     # option.add_argument(r'user-data-dir=C:\Users\zhuan\AppData\Local\Google\Chrome\User Data')
@@ -134,29 +126,7 @@ class MyThread(QThread):#线程类
     # browser = webdriver.Chrome(options=option)
     # browser = webdriver.Chrome()
     browser = webdriver.Chrome(executable_path='/Users/tangyong/Application/chromedriver')
-    browser.get('https://www.youtube.com/')
-    browser.find_element_by_xpath('//input').send_keys('频道：' + channel)
-    search = browser.find_element_by_id('search-icon-legacy')
-    search.click()
-    self.sleep(5)
-    WebDriverWait(browser, 10).until(
-      EC.presence_of_element_located((By.ID, "main-link"))
-    )
-    isChannelExist = self.isElementExist(browser, '#main-link')
-    if not isChannelExist:
-      return '频道不存在'
-    main_link = browser.find_element_by_id('main-link')
-    main_link.click()
-    WebDriverWait(browser, 100).until(
-      EC.presence_of_element_located((By.CLASS_NAME, "paper-tab"))
-    )
-    video = browser.find_elements_by_class_name('paper-tab')[1]
-    video.click()
-    self.sleep(5)
-    scroll_num = math.ceil(int(qty) / 30)
-    for index in range(scroll_num):
-      browser.execute_script("window.scrollTo(0, 100000);")
-      self.sleep(10)
+    browser.get(channel)
 
     time_elements = browser.find_elements_by_xpath('//*[@id="thumbnail"]/*[@id="overlays"]/ytd-thumbnail-overlay-time-status-renderer/span')
     thumbnail = browser.find_elements_by_xpath(r'//*[@id="thumbnail"]/*[@id="overlays"]/ytd-thumbnail-overlay-time-status-renderer/span/../../..')
@@ -178,7 +148,7 @@ class MyThread(QThread):#线程类
     print(vedio_qty_str)
     self.set_label_func(vedio_qty_str)
     print('链接地址如下:', url_list)
-    Downloadtube(url_list, num, download_num, savePath, self.set_label_func, self.set_progress_func)
+    Downloadtube(url_list, num, download_num, savePath, self.set_label_func)
 
     return '自动下载了' + str(download_num) + '个视频！'
 
@@ -213,7 +183,7 @@ class MyThread(QThread):#线程类
       return a
 
 class Downloadtube():
-  def __init__(self, urlList, num, download_num, savePath, set_label_func, set_progress_func):
+  def __init__(self, urlList, num, download_num, savePath, set_label_func):
     self.index = num
     self.proxy_handler = {
       "http": "http://127.0.0.1:7890",
@@ -223,25 +193,22 @@ class Downloadtube():
     self.download_num = download_num
     self.path = savePath
     self.set_label_func = set_label_func
-    self.set_progress_func = set_progress_func
     self.progress_int = 0
     self.initDownload()
 
   def initDownload(self):
     ssl._create_default_https_context = ssl._create_unverified_context
-    while (self.index - 1) < self.download_num:
+    while (self.index) < self.download_num:
       self.downloadVideo()
 
   def show_progress_bar(self, stream, chunk, bytes_remaining):
     new_progress_int = int((stream.filesize - bytes_remaining) * 100 / stream.filesize)
     if new_progress_int != self.progress_int:
       self.progress_int = new_progress_int
-      self.set_progress_func(self.progress_int)
       print(self.progress_int)
     if bytes_remaining == 0:
       self.index = self.index + 1
       self.progress_int = 0
-      self.set_progress_func(self.progress_int)
 
   def downloadVideo(self):
     try:
